@@ -1725,10 +1725,7 @@ class PluginFileInjector(object):
     def get_plugin_env(self, inventory_update, private_data_dir, private_data_files):
         env = self._get_shared_env(inventory_update, private_data_dir, private_data_files)
         if self.initial_version is None or Version(self.ansible_version) >= Version(self.collection_migration):
-            env['ANSIBLE_COLLECTIONS_PATHS'] = os.path.abspath(os.path.join(
-                os.path.dirname(__file__), os.path.pardir, os.path.pardir,  # awx folder
-                'plugins', 'collections'
-            ))
+            env['ANSIBLE_COLLECTIONS_PATHS'] = settings.INVENTORY_COLLECTIONS_ROOT
         return env
 
     def get_script_env(self, inventory_update, private_data_dir, private_data_files):
