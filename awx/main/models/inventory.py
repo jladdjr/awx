@@ -2316,8 +2316,8 @@ class vmware(PluginFileInjector):
             'swapplacement',
             'suspendtime',
             'suspendinterval',
-            # 'summary',  # vim.vm.Summary
-            # 'storage',  # vim.vm.StorageInfo
+            'summary',  # vim.vm.Summary
+            'storage',  # vim.vm.StorageInfo
             'snapshotoperationssupported',
             'snapshotinbackground',
             'snapshotconfigsupported',
@@ -2331,7 +2331,7 @@ class vmware(PluginFileInjector):
             'screen',
             'scheduledhardwareupgradeinfo',
             's1acpimanagementsupported',
-            # 'runtime',  # vim.vm.RuntimeInfo
+            'runtime',  # vim.vm.RuntimeInfo
             'rootsnapshot',
             'reverttosnapshotsupported',
             'resourcepool',
@@ -2365,7 +2365,7 @@ class vmware(PluginFileInjector):
             'npivdesiredportwwns',
             'npivdesirednodewwns',
             'networkshaper',
-            # 'network',  # vim.dvs.DistributedVirtualPortgroup
+            'network',  # vim.dvs.DistributedVirtualPortgroup
             'net',
             'nestedhvsupported',
             'nestedhvenabled',
@@ -2418,7 +2418,7 @@ class vmware(PluginFileInjector):
             'guestfamily',
             'guestautolocksupported',
             'guestautolockenabled',
-            # 'guest',  # Object of type 'vim.vm.GuestInfo' is not JSON serializable
+            'guest',  # Object of type 'vim.vm.GuestInfo' is not JSON serializable
             'generationinfo',
             'ftinfo',
             'forkconfiginfo',
@@ -2440,7 +2440,7 @@ class vmware(PluginFileInjector):
             'device',
             'defaultpowerops',
             'datastoreurl',
-            # 'datastore',
+            'datastore',  # some kind of datastore object
             'dasvmprotection',  # Object of type 'vim.Datastore' is not JSON serializable
             'customvalue',
             'cryptostate',
@@ -2457,12 +2457,12 @@ class vmware(PluginFileInjector):
             'connectionstate',
             'configstatus',
             'configissue',
-            # 'config',  # Object of type 'vim.vm.ConfigInfo' is not JSON serializable
+            'config',  # Object of type 'vim.vm.ConfigInfo' is not JSON serializable
             'cleanpoweroff',
             'changeversion',
             'changetrackingsupported',
             'changetrackingenabled',
-            # 'capability',  # non-python object, bug
+            'capability',  # non-python object, bug
             'canconnectusbdevices',
             'boottime',
             'bootretryoptionssupported',
