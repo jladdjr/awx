@@ -1637,7 +1637,7 @@ class PluginFileInjector(object):
     # so that a source without a collection will have null values
     namespace = None
     collection = None
-    collection_migration = '2.10'  # In this version, content moved to collections
+    collection_migration = '2.9'  # Starting with this version, we use collections
 
     def __init__(self, ansible_version):
         # This is InventoryOptions instance, could be source or inventory update
@@ -2251,7 +2251,7 @@ class gce(PluginFileInjector):
 
 class vmware(PluginFileInjector):
     plugin_name = 'vmware_vm_inventory'  # FIXME: implement me
-    initial_version = '2.10'  # Only tested with collection version, TODO: test 2.9 as candidate
+    initial_version = '2.9'  # Only tested with collection version, TODO: test 2.9 as candidate
     ini_env_reference = 'VMWARE_INI_PATH'
     base_injector = 'managed'
     namespace = 'community'
@@ -2618,7 +2618,7 @@ class rhv(PluginFileInjector):
 class satellite6(PluginFileInjector):
     plugin_name = 'foreman'
     ini_env_reference = 'FOREMAN_INI_PATH'
-    initial_version = '2.10'
+    initial_version = '2.9'
     # No base injector, because this does not work in playbooks. Bug??
     namespace = 'theforeman'
     collection = 'foreman'
