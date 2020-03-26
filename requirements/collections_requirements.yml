@@ -8,6 +8,9 @@ collections:
   # - name: ansible.amazon  # needs to be published
   - name: theforeman.foreman  # needs inventory plugin published
   - name: google.cloud  # https://github.com/ansible-collections/ansible_collections_google/pull/167
-  # - name: openstack.cloud  # needs to be published
+    version: 0.0.9
+  # - name: openstack.cloud  # needs a non-dev version
+  #   version: 0.0.1-dev82  # checksum mismatch
   - name: community.vmware  # needs patch https://github.com/ansible-collections/vmware/pull/58
   - name: ovirt.ovirt_collection  # new fix published
+    version: 1.0.1
