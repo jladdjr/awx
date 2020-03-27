@@ -1907,8 +1907,8 @@ class ec2(PluginFileInjector):
     initial_version = '2.9'  # Driven by unsafe group names issue, parent_group templating, hostvars
     ini_env_reference = 'EC2_INI_PATH'
     base_injector = 'managed'
-    namespace = 'ansible'
-    collection = 'amazon'
+    namespace = 'amazon'
+    collection = 'aws'
 
     def get_plugin_env(self, *args, **kwargs):
         ret = super(ec2, self).get_plugin_env(*args, **kwargs)
