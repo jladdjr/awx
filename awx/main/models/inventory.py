@@ -2605,7 +2605,7 @@ class openstack(PluginFileInjector):
 class rhv(PluginFileInjector):
     """ovirt uses the custom credential templating, and that is all
     """
-    # plugin_name = 'FIXME'  # contribute inventory plugin to Ansible
+    plugin_name = 'ovirt'
     base_injector = 'template'
     namespace = 'ovirt'
     collection = 'ovirt_collection'
