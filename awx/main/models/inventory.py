@@ -2251,10 +2251,10 @@ class gce(PluginFileInjector):
 
 class vmware(PluginFileInjector):
     plugin_name = 'vmware_vm_inventory'  # FIXME: implement me
-    initial_version = '2.9'  # Only tested with collection version, TODO: test 2.9 as candidate
+    initial_version = '2.9'  # Only tested with collection version
     ini_env_reference = 'VMWARE_INI_PATH'
     base_injector = 'managed'
-    namespace = 'community'
+    namespace = 'alancoding'  # FIXME
     collection = 'vmware'
 
     @property
@@ -2512,7 +2512,7 @@ class openstack(PluginFileInjector):
     plugin_name = 'openstack'
     # minimum version of 2.7.8 may be theoretically possible
     initial_version = '2.8'  # Driven by consistency with other sources
-    namespace = 'openstack'
+    namespace = 'alancoding'  # FIXME
     collection = 'cloud'
 
     @property
