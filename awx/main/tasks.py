@@ -2708,13 +2708,24 @@ class RunInventoryUpdate(BaseTask):
         if getattr(settings, '%s_INSTANCE_ID_VAR' % src.upper(), False):
             options['instance_id_var'] = getattr(settings, '%s_INSTANCE_ID_VAR' % src.upper())
 
+        # Verbosity is applied to saving process, as well as ansible-inventory CLI option
+        if inventory_update.verbosity:
+            options['verbosity'] = inventory_update.verbosity
+
         from awx.main.management.commands.inventory_import import Command as InventoryImportCommand
         cmd = InventoryImportCommand()
-        status, tb, exc = cmd.perform_update(options, data, inventory_update)
-        # TODO: handle errors if something went wrong
-        logger.info('inventory update completed, data:')
-        logger.info('{}-{}'.format(status, exc))
-        logger.info(tb)
+        save_status, tb, exc = cmd.perform_update(options, data, inventory_update)
+
+        model_updates = {}
+        if save_status != inventory_update.status:
+            model_updates['status'] = save_status
+        if tb:
+            model_updates['result_traceback'] = tb
+
+        if model_updates:
+            logger.debug('{} saw problems saving to database.'.format(inventory_update.log_format))
+            model_updates['job_explanation'] = 'Update failed to save all changes to database properly'
+            self.update_model(inventory_update.pk, **model_updates)
 
 
 @task(queue=get_local_queuename)
