@@ -2712,19 +2712,75 @@ class RunInventoryUpdate(BaseTask):
         if inventory_update.verbosity:
             options['verbosity'] = inventory_update.verbosity
 
+        # Mock ansible-runner events
+        class CallbackHandler(logging.Handler):
+            def __init__(self, event_handler, cancel_callback, job_timeout, verbosity, **kwargs):
+                self.event_handler = event_handler
+                self.cancel_callback = cancel_callback
+                self.job_timeout = job_timeout
+                self.job_start = time.time()
+                self.last_check = self.job_start
+                # TODO: we do not have events from the ansible-inventory process
+                # so there is no way to know initial counter of start line
+                self.counter = 0
+                self.skip_level = [logging.WARNING, logging.INFO, logging.DEBUG, 0][verbosity]
+                self._start_line = 0
+                super(CallbackHandler, self).__init__(**kwargs)
+
+            def emit(self, record):
+                this_time = time.time()
+                if this_time - self.last_check > 0.5:
+                    self.last_check = this_time
+                    if self.cancel_callback():
+                        raise RuntimeError('Inventory update has been canceled')
+                if self.job_timeout and ((this_time - self.job_start) > self.job_timeout):
+                    raise RuntimeError('Inventory update has timed out')
+
+                # skip logging for low severity logs
+                if record.levelno < self.skip_level:
+                    return
+
+                self.counter += 1
+                msg = self.format(record)
+                n_lines = msg.count('\n')
+                dispatch_data = dict(
+                    created=now().isoformat(),
+                    event='verbose',
+                    counter=self.counter,
+                    stdout=msg + '\n',
+                    start_line=self._start_line,
+                    end_line=self._start_line + n_lines
+                )
+                self._start_line += n_lines + 1
+
+                self.event_handler(dispatch_data)
+
+        handler = CallbackHandler(
+            self.event_handler, self.cancel_callback,
+            verbosity=inventory_update.verbosity,
+            job_timeout=self.get_instance_timeout(self.instance)
+        )
+        inv_logger = logging.getLogger('awx.main.commands.inventory_import')
+        handler.formatter = inv_logger.handlers[0].formatter
+        inv_logger.handlers[0] = handler
+
         from awx.main.management.commands.inventory_import import Command as InventoryImportCommand
         cmd = InventoryImportCommand()
         save_status, tb, exc = cmd.perform_update(options, data, inventory_update)
 
         model_updates = {}
-        if save_status != inventory_update.status:
+        if save_status != status:
             model_updates['status'] = save_status
         if tb:
             model_updates['result_traceback'] = tb
 
         if model_updates:
-            logger.debug('{} saw problems saving to database.'.format(inventory_update.log_format))
-            model_updates['job_explanation'] = 'Update failed to save all changes to database properly'
+            logger.info('{} had problems saving to database with {}'.format(
+                inventory_update.log_format, ', '.join(list(model_updates.keys()))
+            ))
+            model_updates['job_explanation'] = 'Update failed to save all changes to database properly.'
+            if exc:
+                model_updates['job_explanation'] += ' {}'.format(exc)
             self.update_model(inventory_update.pk, **model_updates)
 
 

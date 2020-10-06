@@ -217,10 +217,10 @@ class Command(BaseCommand):
                             'specifies the unique, immutable instance ID, may be '
                             'specified as "foo.bar" to traverse nested dicts.')
 
-    def set_logging_level(self):
+    def set_logging_level(self, verbosity):
         log_levels = dict(enumerate([logging.WARNING, logging.INFO,
                                      logging.DEBUG, 0]))
-        logger.setLevel(log_levels.get(self.verbosity, 0))
+        logger.setLevel(log_levels.get(verbosity, 0))
 
     def _get_instance_id(self, variables, default=''):
         '''
@@ -890,6 +890,7 @@ class Command(BaseCommand):
             raise CommandError('--source is required')
         source = Command.get_source_absolute_path(raw_source)
         verbosity = int(options.get('verbosity', 1))
+        self.set_logging_level(verbosity)
         venv_path = options.get('venv', None)
 
         # Create ad-hoc inventory source and inventory update objects
@@ -944,8 +945,6 @@ class Command(BaseCommand):
         self.inventory_update = inventory_update
 
         # the update options, could be parser object or dict
-        self.verbosity = int(options.get('verbosity', 1))
-        self.set_logging_level()
         self.overwrite = bool(options.get('overwrite', False))
         self.overwrite_vars = bool(options.get('overwrite_vars', False))
         self.enabled_var = options.get('enabled_var', None)
