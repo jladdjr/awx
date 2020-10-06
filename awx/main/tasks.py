@@ -2484,15 +2484,11 @@ class RunInventoryUpdate(BaseTask):
             return injector.build_private_data(inventory_update, private_data_dir)
 
     def build_env(self, inventory_update, private_data_dir, isolated, private_data_files=None):
-        """Build environment dictionary for inventory import.
+        """Build environment dictionary for ansible-inventory.
 
-        This used to be the mechanism by which any data that needs to be passed
-        to the inventory update script is set up. In particular, this is how
-        inventory update is aware of its proper credentials.
-
-        Most environment injection is now accomplished by the credential
-        injectors. The primary purpose this still serves is to
-        still point to the inventory update INI or config file.
+        Most environment variables related to credentials or configuration
+        are accomplished by the inventory source injectors (in this method)
+        or custom credential type injectors (in main run method).
         """
         env = super(RunInventoryUpdate, self).build_env(inventory_update,
                                                         private_data_dir,
@@ -2500,8 +2496,10 @@ class RunInventoryUpdate(BaseTask):
                                                         private_data_files=private_data_files)
         if private_data_files is None:
             private_data_files = {}
-        self.add_awx_venv(env)
-        # Pass inventory source ID to inventory script.
+        self.add_ansible_venv(settings.ANSIBLE_VENV_PATH, env)
+
+        # Legacy environment variables, were used as signal to awx-manage command
+        # now they are provided in case some scripts may be relying on them
         env['INVENTORY_SOURCE_ID'] = str(inventory_update.inventory_source_id)
         env['INVENTORY_UPDATE_ID'] = str(inventory_update.pk)
         env.update(STANDARD_INVENTORY_UPDATE_ENV)
