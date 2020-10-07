@@ -871,6 +871,15 @@ class Command(BaseCommand):
         elif not inventory_name and not inventory_id:
             raise CommandError('--inventory-name or --inventory-id is required')
 
+        # Obtain rest of the options needed to run update
+        raw_source = options.get('source', None)
+        if not raw_source:
+            raise CommandError('--source is required')
+        source = Command.get_source_absolute_path(raw_source)
+        verbosity = int(options.get('verbosity', 1))
+        self.set_logging_level(verbosity)
+        venv_path = options.get('venv', None)
+
         # Load inventory object based on name or ID.
         if inventory_id:
             q = dict(id=inventory_id)
@@ -883,15 +892,6 @@ class Command(BaseCommand):
         except Inventory.MultipleObjectsReturned:
             raise CommandError('Inventory with %s = %s returned multiple results' % list(q.items())[0])
         logger.info('Updating inventory %d: %s' % (inventory.pk, inventory.name))
-
-        # Obtain rest of the options needed to run update
-        raw_source = options.get('source', None)
-        if not raw_source:
-            raise CommandError('--source is required')
-        source = Command.get_source_absolute_path(raw_source)
-        verbosity = int(options.get('verbosity', 1))
-        self.set_logging_level(verbosity)
-        venv_path = options.get('venv', None)
 
         # Create ad-hoc inventory source and inventory update objects
         with ignore_inventory_computed_fields():
