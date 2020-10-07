@@ -2773,7 +2773,12 @@ class RunInventoryUpdate(BaseTask):
 
         from awx.main.management.commands.inventory_import import Command as InventoryImportCommand
         cmd = InventoryImportCommand()
-        save_status, tb, exc = cmd.perform_update(options, data, inventory_update)
+        try:
+            save_status, tb, exc = cmd.perform_update(options, data, inventory_update)
+        except Exception as raw_exc:
+            # Ignore license errors specifically
+            if 'Host limit for organization' not in str(exc) and 'License' not in str(exc):
+                raise raw_exc
 
         model_updates = {}
         if save_status != status:

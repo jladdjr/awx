@@ -826,7 +826,7 @@ class Command(BaseCommand):
         # special check for tower-type inventory sources
         # but only if running the plugin
         TOWER_SOURCE_FILES = ['tower.yml', 'tower.yaml']
-        if self.inventory_source.source == 'tower' and any(f in self.source for f in TOWER_SOURCE_FILES):
+        if self.inventory_source.source == 'tower' and any(f in self.inventory_source.source_path for f in TOWER_SOURCE_FILES):
             # only if this is the 2nd call to license check, we cannot compare before running plugin
             if hasattr(self, 'all_group'):
                 self.remote_tower_license_compare(local_license_type)
@@ -1038,19 +1038,9 @@ class Command(BaseCommand):
                                     queries_before2 = len(connection.queries)
                                 self.inventory.update_computed_fields()
                             if settings.SQL_DEBUG:
-                                logger.warning('loading into database...')
-                            with ignore_inventory_computed_fields():
-                                if getattr(settings, 'ACTIVITY_STREAM_ENABLED_FOR_INVENTORY_SYNC', True):
-                                    self.load_into_database()
-                                else:
-                                    with disable_activity_stream():
-                                        self.load_into_database()
-                                if settings.SQL_DEBUG:
-                                    queries_before2 = len(connection.queries)
-                                self.inventory.update_computed_fields()
-                                if settings.SQL_DEBUG:
-                                    logger.warning('update computed fields took %d queries',
-                                                   len(connection.queries) - queries_before2)
+                                logger.warning('update computed fields took %d queries',
+                                               len(connection.queries) - queries_before2)
+
                             # Check if the license is valid.
                             # If the license is not valid, a CommandError will be thrown,
                             # and inventory update will be marked as invalid.
@@ -1063,9 +1053,9 @@ class Command(BaseCommand):
                             self.check_org_host_limit()
                     except CommandError as e:
                         if license_fail:
-                            self.mark_license_failure()
+                            self.mark_license_failure(save=True)
                         else:
-                            self.mark_org_limits_failure()
+                            self.mark_org_limits_failure(save=True)
                         raise e
 
                     if settings.SQL_DEBUG:
