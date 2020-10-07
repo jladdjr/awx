@@ -2565,14 +2565,21 @@ class RunInventoryUpdate(BaseTask):
         args = ['ansible-inventory', '--list', '--export']
 
         # Add arguments for the source inventory file/script/thing
+        source_location = self.pseudo_build_inventory(inventory_update, private_data_dir)
         args.append('-i')
-        args.append(self.pseudo_build_inventory(inventory_update, private_data_dir))
+        args.append(source_location)
 
         args.append('--output')
         args.append(os.path.join(private_data_dir, 'artifacts', 'output.json'))
 
+        if os.path.isdir(source_location):
+            playbook_dir = source_location
+        else:
+            playbook_dir = os.path.dirname(source_location)
+        args.extend(['--playbook-dir', playbook_dir])
+
         if inventory_update.verbosity:
-            args.append('-' + 'v' * inventory_update.verbosity)
+            args.append('-' + 'v' * min(5, inventory_update.verbosity * 2 + 1))
 
         return args
 
@@ -2712,7 +2719,8 @@ class RunInventoryUpdate(BaseTask):
 
         # Mock ansible-runner events
         class CallbackHandler(logging.Handler):
-            def __init__(self, event_handler, cancel_callback, job_timeout, verbosity, **kwargs):
+            def __init__(self, event_handler, cancel_callback, job_timeout, verbosity,
+                         counter=0, **kwargs):
                 self.event_handler = event_handler
                 self.cancel_callback = cancel_callback
                 self.job_timeout = job_timeout
@@ -2720,7 +2728,7 @@ class RunInventoryUpdate(BaseTask):
                 self.last_check = self.job_start
                 # TODO: we do not have events from the ansible-inventory process
                 # so there is no way to know initial counter of start line
-                self.counter = 0
+                self.counter = counter
                 self.skip_level = [logging.WARNING, logging.INFO, logging.DEBUG, 0][verbosity]
                 self._start_line = 0
                 super(CallbackHandler, self).__init__(**kwargs)
@@ -2756,7 +2764,8 @@ class RunInventoryUpdate(BaseTask):
         handler = CallbackHandler(
             self.event_handler, self.cancel_callback,
             verbosity=inventory_update.verbosity,
-            job_timeout=self.get_instance_timeout(self.instance)
+            job_timeout=self.get_instance_timeout(self.instance),
+            counter=self.event_ct
         )
         inv_logger = logging.getLogger('awx.main.commands.inventory_import')
         handler.formatter = inv_logger.handlers[0].formatter
