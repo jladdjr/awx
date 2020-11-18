@@ -912,61 +912,60 @@ class Command(BaseCommand):
         elif not inventory_name and not inventory_id:
             raise CommandError('--inventory-name or --inventory-id is required')
 
-        with advisory_lock('inventory_{}_import'.format(inventory_id)):
-            # Obtain rest of the options needed to run update
-            raw_source = options.get('source', None)
-            if not raw_source:
-                raise CommandError('--source is required')
-            verbosity = int(options.get('verbosity', 1))
-            self.set_logging_level(verbosity)
-            venv_path = options.get('venv', None)
+        # Obtain rest of the options needed to run update
+        raw_source = options.get('source', None)
+        if not raw_source:
+            raise CommandError('--source is required')
+        verbosity = int(options.get('verbosity', 1))
+        self.set_logging_level(verbosity)
+        venv_path = options.get('venv', None)
 
-            # Load inventory object based on name or ID.
-            if inventory_id:
-                q = dict(id=inventory_id)
-            else:
-                q = dict(name=inventory_name)
-            try:
-                inventory = Inventory.objects.get(**q)
-            except Inventory.DoesNotExist:
-                raise CommandError('Inventory with %s = %s cannot be found' % list(q.items())[0])
-            except Inventory.MultipleObjectsReturned:
-                raise CommandError('Inventory with %s = %s returned multiple results' % list(q.items())[0])
-            logger.info('Updating inventory %d: %s' % (inventory.pk, inventory.name))
+        # Load inventory object based on name or ID.
+        if inventory_id:
+            q = dict(id=inventory_id)
+        else:
+            q = dict(name=inventory_name)
+        try:
+            inventory = Inventory.objects.get(**q)
+        except Inventory.DoesNotExist:
+            raise CommandError('Inventory with %s = %s cannot be found' % list(q.items())[0])
+        except Inventory.MultipleObjectsReturned:
+            raise CommandError('Inventory with %s = %s returned multiple results' % list(q.items())[0])
+        logger.info('Updating inventory %d: %s' % (inventory.pk, inventory.name))
 
 
-            # Create ad-hoc inventory source and inventory update objects
-            with ignore_inventory_computed_fields():
-                source = Command.get_source_absolute_path(raw_source)
+        # Create ad-hoc inventory source and inventory update objects
+        with ignore_inventory_computed_fields():
+            source = Command.get_source_absolute_path(raw_source)
 
-                inventory_source, created = InventorySource.objects.get_or_create(
-                    inventory=inventory,
-                    source='file',
-                    source_path=os.path.abspath(source),
-                    overwrite=bool(options.get('overwrite', False)),
-                    overwrite_vars=bool(options.get('overwrite_vars', False)),
-                )
-                inventory_update = inventory_source.create_inventory_update(
-                    _eager_fields=dict(
-                        job_args=json.dumps(sys.argv),
-                        job_env=dict(os.environ.items()),
-                        job_cwd=os.getcwd())
-                )
+            inventory_source, created = InventorySource.objects.get_or_create(
+                inventory=inventory,
+                source='file',
+                source_path=os.path.abspath(source),
+                overwrite=bool(options.get('overwrite', False)),
+                overwrite_vars=bool(options.get('overwrite_vars', False)),
+            )
+            inventory_update = inventory_source.create_inventory_update(
+                _eager_fields=dict(
+                    job_args=json.dumps(sys.argv),
+                    job_env=dict(os.environ.items()),
+                    job_cwd=os.getcwd())
+            )
 
-            data = AnsibleInventoryLoader(
-                source=source, venv_path=venv_path, verbosity=verbosity
-            ).load()
+        data = AnsibleInventoryLoader(
+            source=source, venv_path=venv_path, verbosity=verbosity
+        ).load()
 
-            logger.debug('Finished loading from source: %s', source)
-            status, tb, exc = self.perform_update(options, data, inventory_update)
+        logger.debug('Finished loading from source: %s', source)
+        status, tb, exc = self.perform_update(options, data, inventory_update)
 
-            with ignore_inventory_computed_fields():
-                inventory_update = InventoryUpdate.objects.get(pk=inventory_update.pk)
-                inventory_update.result_traceback = tb
-                inventory_update.status = status
-                inventory_update.save(update_fields=['status', 'result_traceback'])
-                inventory_source.status = status
-                inventory_source.save(update_fields=['status'])
+        with ignore_inventory_computed_fields():
+            inventory_update = InventoryUpdate.objects.get(pk=inventory_update.pk)
+            inventory_update.result_traceback = tb
+            inventory_update.status = status
+            inventory_update.save(update_fields=['status', 'result_traceback'])
+            inventory_source.status = status
+            inventory_source.save(update_fields=['status'])
 
         if exc:
             logger.error(str(exc))
@@ -1013,106 +1012,105 @@ class Command(BaseCommand):
         # or from the task system, we need to create a new lock at this level
         # (even though inventory_import.Command.handle -- which calls
         # perform_update -- has its own lock, inventory_ID_import)
-        with advisory_lock('inventory_{}_perform_update'.format(self.inventory.id)):
 
-            try:
-                self.check_license()
-            except CommandError as e:
-                self.mark_license_failure(save=True)
-                raise e
+        try:
+            self.check_license()
+        except CommandError as e:
+            self.mark_license_failure(save=True)
+            raise e
 
-            try:
-                # Check the per-org host limits
-                self.check_org_host_limit()
-            except CommandError as e:
-                self.mark_org_limits_failure(save=True)
-                raise e
+        try:
+            # Check the per-org host limits
+            self.check_org_host_limit()
+        except CommandError as e:
+            self.mark_org_limits_failure(save=True)
+            raise e
 
-            status, tb, exc = 'error', '', None
-            try:
-                if settings.SQL_DEBUG:
-                    queries_before = len(connection.queries)
+        status, tb, exc = 'error', '', None
+        try:
+            if settings.SQL_DEBUG:
+                queries_before = len(connection.queries)
 
-                # Update inventory update for this command line invocation.
-                with ignore_inventory_computed_fields():
-                    iu = self.inventory_update
-                    if iu.status != 'running':
-                        with transaction.atomic():
-                            self.inventory_update.status = 'running'
-                            self.inventory_update.save()
+            # Update inventory update for this command line invocation.
+            with ignore_inventory_computed_fields():
+                iu = self.inventory_update
+                if iu.status != 'running':
+                    with transaction.atomic():
+                        self.inventory_update.status = 'running'
+                        self.inventory_update.save()
 
-                logger.info('Processing JSON output...')
-                inventory = MemInventory(
-                    group_filter_re=self.group_filter_re, host_filter_re=self.host_filter_re)
-                inventory = dict_to_mem_data(data, inventory=inventory)
+            logger.info('Processing JSON output...')
+            inventory = MemInventory(
+                group_filter_re=self.group_filter_re, host_filter_re=self.host_filter_re)
+            inventory = dict_to_mem_data(data, inventory=inventory)
 
-                logger.info('Loaded %d groups, %d hosts', len(inventory.all_group.all_groups),
-                            len(inventory.all_group.all_hosts))
+            logger.info('Loaded %d groups, %d hosts', len(inventory.all_group.all_groups),
+                        len(inventory.all_group.all_hosts))
 
-                if self.exclude_empty_groups:
-                    inventory.delete_empty_groups()
+            if self.exclude_empty_groups:
+                inventory.delete_empty_groups()
 
-                self.all_group = inventory.all_group
+            self.all_group = inventory.all_group
 
-                if settings.DEBUG:
-                    # depending on inventory source, this output can be
-                    # *exceedingly* verbose - crawling a deeply nested
-                    # inventory/group data structure and printing metadata about
-                    # each host and its memberships
-                    #
-                    # it's easy for this scale of data to overwhelm pexpect,
-                    # (and it's likely only useful for purposes of debugging the
-                    # actual inventory import code), so only print it if we have to:
-                    # https://github.com/ansible/ansible-tower/issues/7414#issuecomment-321615104
-                    self.all_group.debug_tree()
+            if settings.DEBUG:
+                # depending on inventory source, this output can be
+                # *exceedingly* verbose - crawling a deeply nested
+                # inventory/group data structure and printing metadata about
+                # each host and its memberships
+                #
+                # it's easy for this scale of data to overwhelm pexpect,
+                # (and it's likely only useful for purposes of debugging the
+                # actual inventory import code), so only print it if we have to:
+                # https://github.com/ansible/ansible-tower/issues/7414#issuecomment-321615104
+                self.all_group.debug_tree()
 
-                with batch_role_ancestor_rebuilding():
-                    # If using with transaction.atomic() with try ... catch,
-                    # with transaction.atomic() must be inside the try section of the code as per Django docs
-                    try:
-                        # Ensure that this is managed as an atomic SQL transaction,
-                        # and thus properly rolled back if there is an issue.
-                        with transaction.atomic():
-                            # Merge/overwrite inventory into database.
-                            if settings.SQL_DEBUG:
-                                logger.warning('loading into database...')
-                            with ignore_inventory_computed_fields():
-                                if getattr(settings, 'ACTIVITY_STREAM_ENABLED_FOR_INVENTORY_SYNC', True):
+            with batch_role_ancestor_rebuilding():
+                # If using with transaction.atomic() with try ... catch,
+                # with transaction.atomic() must be inside the try section of the code as per Django docs
+                try:
+                    # Ensure that this is managed as an atomic SQL transaction,
+                    # and thus properly rolled back if there is an issue.
+                    with transaction.atomic():
+                        # Merge/overwrite inventory into database.
+                        if settings.SQL_DEBUG:
+                            logger.warning('loading into database...')
+                        with ignore_inventory_computed_fields():
+                            if getattr(settings, 'ACTIVITY_STREAM_ENABLED_FOR_INVENTORY_SYNC', True):
+                                self.load_into_database()
+                            else:
+                                with disable_activity_stream():
                                     self.load_into_database()
-                                else:
-                                    with disable_activity_stream():
-                                        self.load_into_database()
-                                if settings.SQL_DEBUG:
-                                    queries_before2 = len(connection.queries)
-                                self.inventory.update_computed_fields()
                             if settings.SQL_DEBUG:
-                                logger.warning('update computed fields took %d queries',
-                                               len(connection.queries) - queries_before2)
+                                queries_before2 = len(connection.queries)
+                            self.inventory.update_computed_fields()
+                        if settings.SQL_DEBUG:
+                            logger.warning('update computed fields took %d queries',
+                                           len(connection.queries) - queries_before2)
 
-                            # Check if the license is valid.
-                            # If the license is not valid, a CommandError will be thrown,
-                            # and inventory update will be marked as invalid.
-                            # with transaction.atomic() will roll back the changes.
-                            license_fail = True
-                            self.check_license()
+                        # Check if the license is valid.
+                        # If the license is not valid, a CommandError will be thrown,
+                        # and inventory update will be marked as invalid.
+                        # with transaction.atomic() will roll back the changes.
+                        license_fail = True
+                        self.check_license()
 
-                            # Check the per-org host limits
-                            license_fail = False
-                            self.check_org_host_limit()
-                    except CommandError as e:
-                        if license_fail:
-                            self.mark_license_failure(save=True)
-                        else:
-                            self.mark_org_limits_failure(save=True)
-                        raise e
-
-                    if settings.SQL_DEBUG:
-                        logger.warning('Inventory import completed for %s in %0.1fs',
-                                       self.inventory_source.name, time.time() - begin)
+                        # Check the per-org host limits
+                        license_fail = False
+                        self.check_org_host_limit()
+                except CommandError as e:
+                    if license_fail:
+                        self.mark_license_failure(save=True)
                     else:
-                        logger.info('Inventory import completed for %s in %0.1fs',
-                                    self.inventory_source.name, time.time() - begin)
-                    status = 'successful'
+                        self.mark_org_limits_failure(save=True)
+                    raise e
+
+                if settings.SQL_DEBUG:
+                    logger.warning('Inventory import completed for %s in %0.1fs',
+                                   self.inventory_source.name, time.time() - begin)
+                else:
+                    logger.info('Inventory import completed for %s in %0.1fs',
+                                self.inventory_source.name, time.time() - begin)
+                status = 'successful'
 
                 # If we're in debug mode, then log the queries and time
                 # used to do the operation.
@@ -1122,14 +1120,14 @@ class Command(BaseCommand):
                     logger.warning('Inventory import required %d queries '
                                    'taking %0.3fs', len(queries_this_import),
                                    sqltime)
-            except Exception as e:
-                if isinstance(e, KeyboardInterrupt):
-                    status = 'canceled'
-                    exc = e
-                elif isinstance(e, CommandError):
-                    exc = e
-                else:
-                    tb = traceback.format_exc()
-                    exc = e
+        except Exception as e:
+            if isinstance(e, KeyboardInterrupt):
+                status = 'canceled'
+                exc = e
+            elif isinstance(e, CommandError):
+                exc = e
+            else:
+                tb = traceback.format_exc()
+                exc = e
 
         return status, tb, exc
