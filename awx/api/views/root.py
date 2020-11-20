@@ -380,13 +380,9 @@ class ApiV2ConfigView(APIView):
         else:
             license_data_validated = get_licenser().validate()
 
-        # If the license is valid, write it to the database.
-        if license_data_validated['valid_key']:
-            # *** Dropping the following condition - we think this may be
-            # preventing TOWER_URL_BASE from getting set ***
-            # if not settings_registry.is_setting_read_only('TOWER_URL_BASE'):
-            settings.TOWER_URL_BASE = "{}://{}".format(request.scheme, request.get_host())
-            return Response(license_data_validated)
+        # free for all.. always write license to the DB!
+        settings.TOWER_URL_BASE = "{}://{}".format(request.scheme, request.get_host())
+        return Response(license_data_validated)
 
         logger.warning(smart_text(u"Invalid subscription submitted."),
                        extra=dict(actor=request.user.username))
